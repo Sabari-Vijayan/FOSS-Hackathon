@@ -10,12 +10,24 @@
   <p>Room ID: <span id="room-id"></span></p>
   <div id="chat"></div>
   <br>
-  <input type="text" id="messageInput" placeholder="Type a message" />
-  <button id="sendButton">Send</button>
-
-  <!-- Include PeerJS library from CDN -->
+  <div id="input-container">
+    <input type="text" id="messageInput" placeholder="Type a message" />
+    <button id="sendButton">Send</button>
+  </div>
+  <div id="file-container">
+    <input type="file" id="fileInput" />
+    <button id="sendFileButton">Send File</button>
+  </div>
+  
+  <h2>Video Call</h2>
+  <div id="video-container">
+    <video id="localVideo" autoplay muted playsinline></video>
+    <video id="remoteVideo" autoplay playsinline></video>
+  </div>
+  <button id="startCallButton">Start Video Call</button>
+  
+  <!-- Include PeerJS library -->
   <script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
   <script src="script.js"></script>
-  
 </body>
 </html>
