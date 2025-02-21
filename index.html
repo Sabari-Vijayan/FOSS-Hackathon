@@ -1,40 +1,130 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WhatsApp Clone</title>
-  <link rel="stylesheet" href="style.css">
+  <title>P2P WhatsApp Clone Demo</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    #chat { width: 100%; height: 300px; border: 1px solid #ccc; overflow-y: scroll; padding: 10px; }
+    #offer-answer { width: 100%; height: 100px; }
+    input[type="text"] { width: calc(100% - 90px); }
+    button { margin-left: 10px; }
+  </style>
 </head>
 <body>
-  <div class="app">
-    <!-- Sidebar for contacts -->
-    <div class="sidebar">
-      <header>
-        <h1>Chats</h1>
-      </header>
-      <div class="contacts">
-        <div class="contact">Contact 1</div>
-        <div class="contact">Contact 2</div>
-      </div>
-    </div>
+  <h1>P2P WhatsApp Clone Demo</h1>
+  
+  <!-- Chat display and message input -->
+  <div id="chat"></div>
+  <br>
+  <input type="text" id="messageInput" placeholder="Type a message" />
+  <button id="sendButton">Send</button>
+  
+  <h2>Manual Signaling</h2>
+  <textarea id="offer-answer" placeholder="Offer/Answer will appear here"></textarea>
+  <br>
+  <button id="createOffer">Create Offer</button>
+  <button id="setOfferAnswer">Set Offer/Answer</button>
+  
+  <script>
+    // STUN server configuration (using Google's public STUN server)
+    const configuration = {
+      iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+    };
 
-    <!-- Chat window -->
-    <div class="chat-window">
-      <header>
-        <h2>Contact Name</h2>
-      </header>
-      <div class="messages">
-        <div class="message received">Hello!</div>
-        <div class="message sent">Hi there!</div>
-      </div>
-      <div class="message-input">
-        <input type="text" placeholder="Type a message...">
-        <button>Send</button>
-      </div>
-    </div>
-  </div>
+    // Create RTCPeerConnection
+    const peerConnection = new RTCPeerConnection(configuration);
+    let dataChannel = null;
 
-  <script src="script.js"></script>
+    const chat = document.getElementById("chat");
+    const messageInput = document.getElementById("messageInput");
+
+    // Function to log messages to the chat div
+    function logMessage(message) {
+      const p = document.createElement("p");
+      p.textContent = message;
+      chat.appendChild(p);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    // Helper function to wait for ICE gathering to complete
+    function waitForIceGatheringComplete(pc) {
+      return new Promise(resolve => {
+        if (pc.iceGatheringState === "complete") {
+          resolve();
+        } else {
+          const checkState = () => {
+            if (pc.iceGatheringState === "complete") {
+              pc.removeEventListener("icegatheringstatechange", checkState);
+              resolve();
+            }
+          };
+          pc.addEventListener("icegatheringstatechange", checkState);
+        }
+      });
+    }
+
+    // If you're the caller, create a data channel
+    dataChannel = peerConnection.createDataChannel("chat");
+    dataChannel.onopen = () => logMessage("Data channel is open.");
+    dataChannel.onmessage = (event) => logMessage("Peer: " + event.data);
+
+    // When a remote data channel is received (for the callee)
+    peerConnection.ondatachannel = (event) => {
+      dataChannel = event.channel;
+      dataChannel.onopen = () => logMessage("Data channel is open.");
+      dataChannel.onmessage = (event) => logMessage("Peer: " + event.data);
+    };
+
+    // Handle ICE candidates (for debugging purposes)
+    peerConnection.onicecandidate = (event) => {
+      if (event.candidate) {
+        console.log("New ICE candidate: ", event.candidate);
+      }
+    };
+
+    // Create an offer (caller)
+    document.getElementById("createOffer").addEventListener("click", async () => {
+      try {
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+        // Wait for ICE gathering to complete before outputting the offer
+        await waitForIceGatheringComplete(peerConnection);
+        document.getElementById("offer-answer").value = JSON.stringify(peerConnection.localDescription);
+      } catch (err) {
+        console.error("Error creating offer: ", err);
+      }
+    });
+
+    // Set the remote description from the pasted offer/answer
+    document.getElementById("setOfferAnswer").addEventListener("click", async () => {
+      try {
+        const offerAnswer = JSON.parse(document.getElementById("offer-answer").value);
+        await peerConnection.setRemoteDescription(offerAnswer);
+        // If you received an offer, then create and send an answer
+        if (offerAnswer.type === "offer") {
+          const answer = await peerConnection.createAnswer();
+          await peerConnection.setLocalDescription(answer);
+          // Wait for ICE gathering to complete before outputting the answer
+          await waitForIceGatheringComplete(peerConnection);
+          document.getElementById("offer-answer").value = JSON.stringify(peerConnection.localDescription);
+        }
+      } catch (err) {
+        console.error("Error setting offer/answer: ", err);
+      }
+    });
+
+    // Send message when clicking the send button
+    document.getElementById("sendButton").addEventListener("click", () => {
+      const message = messageInput.value;
+      if (dataChannel && dataChannel.readyState === "open") {
+        dataChannel.send(message);
+        logMessage("You: " + message);
+        messageInput.value = "";
+      } else {
+        logMessage("Data channel is not open yet.");
+      }
+    });
+  </script>
 </body>
 </html>
