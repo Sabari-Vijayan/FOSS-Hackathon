@@ -6,125 +6,106 @@
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; }
     #chat { width: 100%; height: 300px; border: 1px solid #ccc; overflow-y: scroll; padding: 10px; }
-    #offer-answer { width: 100%; height: 100px; }
     input[type="text"] { width: calc(100% - 90px); }
     button { margin-left: 10px; }
   </style>
 </head>
 <body>
   <h1>P2P WhatsApp Clone Demo</h1>
-  
-  <!-- Chat display and message input -->
+  <p>Room ID: <span id="room-id"></span></p>
   <div id="chat"></div>
   <br>
   <input type="text" id="messageInput" placeholder="Type a message" />
   <button id="sendButton">Send</button>
-  
-  <h2>Manual Signaling</h2>
-  <textarea id="offer-answer" placeholder="Offer/Answer will appear here"></textarea>
-  <br>
-  <button id="createOffer">Create Offer</button>
-  <button id="setOfferAnswer">Set Offer/Answer</button>
-  
+
+  <!-- Include PeerJS library from CDN -->
+  <script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
   <script>
-    // STUN server configuration (using Google's public STUN server)
-    const configuration = {
-      iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
-    };
+    // Get or generate room id from URL query parameter.
+    const urlParams = new URLSearchParams(window.location.search);
+    let room = urlParams.get("room");
+    if (!room) {
+      room = Math.random().toString(36).substr(2, 6);
+      const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?room=' + room;
+      window.history.pushState({ path: newUrl }, '', newUrl);
+    }
+    document.getElementById("room-id").textContent = room;
 
-    // Create RTCPeerConnection
-    const peerConnection = new RTCPeerConnection(configuration);
-    let dataChannel = null;
+    let peer;
+    let conn;
 
-    const chat = document.getElementById("chat");
-    const messageInput = document.getElementById("messageInput");
-
-    // Function to log messages to the chat div
-    function logMessage(message) {
+    // Log messages to the chat div.
+    function logMessage(msg) {
       const p = document.createElement("p");
-      p.textContent = message;
-      chat.appendChild(p);
-      chat.scrollTop = chat.scrollHeight;
+      p.textContent = msg;
+      const chatDiv = document.getElementById("chat");
+      chatDiv.appendChild(p);
+      chatDiv.scrollTop = chatDiv.scrollHeight;
     }
 
-    // Helper function to wait for ICE gathering to complete
-    function waitForIceGatheringComplete(pc) {
-      return new Promise(resolve => {
-        if (pc.iceGatheringState === "complete") {
-          resolve();
+    // Initialize the Peer connection.
+    function initPeer() {
+      // Try to become the host using a fixed ID based on the room.
+      peer = new Peer(room + '-host', { debug: 2 });
+
+      peer.on('open', function(id) {
+        console.log('Host peer open: ' + id);
+        logMessage("Waiting for peer to join...");
+      });
+
+      // If the host id is already taken, this error will occur.
+      // In that case, become the guest.
+      peer.on('error', function(err) {
+        console.log('Peer error:', err);
+        if (err.type === 'unavailable-id') {
+          // Host already exists, so become the guest.
+          peer = new Peer(room + '-guest', { debug: 2 });
+          peer.on('open', function(id) {
+            console.log('Guest peer open: ' + id);
+            logMessage("Connecting to host...");
+            // Connect to the host.
+            conn = peer.connect(room + '-host');
+            setupConnection();
+          });
         } else {
-          const checkState = () => {
-            if (pc.iceGatheringState === "complete") {
-              pc.removeEventListener("icegatheringstatechange", checkState);
-              resolve();
-            }
-          };
-          pc.addEventListener("icegatheringstatechange", checkState);
+          logMessage("Peer error: " + err);
         }
+      });
+
+      // For host: when a connection is received, set it up.
+      peer.on('connection', function(connection) {
+        conn = connection;
+        setupConnection();
       });
     }
 
-    // If you're the caller, create a data channel
-    dataChannel = peerConnection.createDataChannel("chat");
-    dataChannel.onopen = () => logMessage("Data channel is open.");
-    dataChannel.onmessage = (event) => logMessage("Peer: " + event.data);
+    // Set up data channel event handlers.
+    function setupConnection() {
+      conn.on('open', function() {
+        logMessage("Connection established.");
+      });
+      conn.on('data', function(data) {
+        logMessage("Peer: " + data);
+      });
+      conn.on('error', function(err) {
+        console.error("Connection error:", err);
+      });
+    }
 
-    // When a remote data channel is received (for the callee)
-    peerConnection.ondatachannel = (event) => {
-      dataChannel = event.channel;
-      dataChannel.onopen = () => logMessage("Data channel is open.");
-      dataChannel.onmessage = (event) => logMessage("Peer: " + event.data);
-    };
-
-    // Handle ICE candidates (for debugging purposes)
-    peerConnection.onicecandidate = (event) => {
-      if (event.candidate) {
-        console.log("New ICE candidate: ", event.candidate);
-      }
-    };
-
-    // Create an offer (caller)
-    document.getElementById("createOffer").addEventListener("click", async () => {
-      try {
-        const offer = await peerConnection.createOffer();
-        await peerConnection.setLocalDescription(offer);
-        // Wait for ICE gathering to complete before outputting the offer
-        await waitForIceGatheringComplete(peerConnection);
-        document.getElementById("offer-answer").value = JSON.stringify(peerConnection.localDescription);
-      } catch (err) {
-        console.error("Error creating offer: ", err);
-      }
-    });
-
-    // Set the remote description from the pasted offer/answer
-    document.getElementById("setOfferAnswer").addEventListener("click", async () => {
-      try {
-        const offerAnswer = JSON.parse(document.getElementById("offer-answer").value);
-        await peerConnection.setRemoteDescription(offerAnswer);
-        // If you received an offer, then create and send an answer
-        if (offerAnswer.type === "offer") {
-          const answer = await peerConnection.createAnswer();
-          await peerConnection.setLocalDescription(answer);
-          // Wait for ICE gathering to complete before outputting the answer
-          await waitForIceGatheringComplete(peerConnection);
-          document.getElementById("offer-answer").value = JSON.stringify(peerConnection.localDescription);
-        }
-      } catch (err) {
-        console.error("Error setting offer/answer: ", err);
-      }
-    });
-
-    // Send message when clicking the send button
-    document.getElementById("sendButton").addEventListener("click", () => {
-      const message = messageInput.value;
-      if (dataChannel && dataChannel.readyState === "open") {
-        dataChannel.send(message);
+    // Send a chat message when the button is clicked.
+    document.getElementById("sendButton").addEventListener("click", function() {
+      const message = document.getElementById("messageInput").value;
+      if (conn && conn.open) {
+        conn.send(message);
         logMessage("You: " + message);
-        messageInput.value = "";
+        document.getElementById("messageInput").value = "";
       } else {
-        logMessage("Data channel is not open yet.");
+        logMessage("Connection not open yet.");
       }
     });
+
+    // Start the peer initialization.
+    initPeer();
   </script>
 </body>
 </html>
