@@ -12,7 +12,7 @@ let peer;
 let conn;
 let localStream = null;
 let currentCall = null; // To track an active video call
-
+let isScreenSharing = false;
 let encryptionKey = null;
 
 // Generate an AES encryption key
@@ -28,16 +28,53 @@ async function generateKey() {
     console.error("Error generating encryption key:", error);
   }
 }
-
 // Encrypt message using AES
 async function encryptMessage(message) {
   return CryptoJS.AES.encrypt(message, room).toString();
 }
-
 // Decrypt message using AES
 async function decryptMessage(data) {
   const bytes = CryptoJS.AES.decrypt(data, room);
   return bytes.toString(CryptoJS.enc.Utf8); // Convert decrypted bytes to string
+}
+
+async function startScreenShare() {
+  try {
+    localStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+    document.getElementById("localVideo").srcObject = localStream;
+    
+    if (conn && conn.open) {
+      const remotePeerId = conn.peer;
+      const call = peer.call(remotePeerId, localStream, { metadata: { isScreenShare: true } });
+      setupCall(call, true);
+      isScreenSharing = true;
+    } else {
+      logMessage("Remote connection not available for video call.", "system");
+    }
+  } catch (err) {
+    console.error("Error starting video call:", err);
+    logMessage("Error starting video call: " + err, "system");
+  }
+}
+// End screen sharing.
+function endScreenShare() {
+  if (isScreenSharing) {
+    // Stop all tracks of the screen share stream.
+    if (localStream) {
+      localStream.getTracks().forEach(track => track.stop());
+    }
+    // Close the screen share call if it's active.
+    if (currentCall) {
+      currentCall.close();
+      currentCall = null;
+    }
+    // Reset the video element and flag.
+    document.getElementById("localVideo").srcObject = null;
+    isScreenSharing = false;
+    logMessage("Screen sharing ended.", "system");
+  } else {
+    logMessage("No active screen share session to end.", "system");
+  }
 }
 
 // Log a message to the chat with a given type: "sent", "received", or "system".
@@ -107,6 +144,11 @@ function initPeer() {
 
   // Handle incoming video calls.
   peer.on('call', async function(call) {
+    if (call.metadata && call.metadata.isScreenShare) {
+      call.answer(); // Answer without requesting camera access
+      setupCall(call, true); // Handle screen sharing
+      return;
+    }
     if (!localStream) {
       try {
         localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
@@ -118,7 +160,7 @@ function initPeer() {
       }
     }
     call.answer(localStream);
-    setupCall(call);
+    setupCall(call, false);
   });
 }
 
@@ -152,6 +194,9 @@ function setupConnection() {
   conn.on('error', function(err) {
     console.error("Connection error:", err);
     logMessage("Connection error: " + err, "system");
+  });
+  conn.on('close', function() {
+    logMessage("Peer has disconnected.", "system");
   });
 }
 
@@ -271,7 +316,6 @@ function disconnect() {
   if (conn) {
     conn.close();
     conn = null;
-    logMessage("Chat connection disconnected.", "system");
   }
   if (currentCall) {
     currentCall.close();
@@ -280,7 +324,7 @@ function disconnect() {
   }
   if (peer && !peer.destroyed) {
     peer.destroy();
-    logMessage("Peer connection closed.", "system");
+    // logMessage("Peer connection closed.", "system");
   }
 }
 
@@ -303,5 +347,7 @@ document.getElementById("endCallButton").addEventListener("click", endVideoCall)
 
 document.getElementById("disconnectButton").addEventListener("click", disconnect);
 
+document.getElementById("shareScreenButton").addEventListener("click", startScreenShare);
+document.getElementById("endScreenShareButton").addEventListener("click", endScreenShare);
 // Start the Peer connection.
 initPeer();
