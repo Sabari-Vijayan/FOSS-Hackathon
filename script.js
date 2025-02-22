@@ -13,6 +13,33 @@ let conn;
 let localStream = null;
 let currentCall = null; // To track an active video call
 
+let encryptionKey = null;
+
+// Generate an AES encryption key
+async function generateKey() {
+  try {
+    encryptionKey = await crypto.subtle.generateKey(
+      { name: "AES-GCM", length: 256 },
+      true, // Whether the key is extractable
+      ["encrypt", "decrypt"] // Key usages
+    );
+    console.log("Encryption key generated successfully.");
+  } catch (error) {
+    console.error("Error generating encryption key:", error);
+  }
+}
+
+// Encrypt message using AES
+async function encryptMessage(message) {
+  return CryptoJS.AES.encrypt(message, room).toString();
+}
+
+// Decrypt message using AES
+async function decryptMessage(data) {
+  const bytes = CryptoJS.AES.decrypt(data, room);
+  return bytes.toString(CryptoJS.enc.Utf8); // Convert decrypted bytes to string
+}
+
 // Log a message to the chat with a given type: "sent", "received", or "system".
 function logMessage(msg, type = "system") {
   const p = document.createElement("p");
@@ -100,7 +127,7 @@ function setupConnection() {
   conn.on('open', function() {
     logMessage("Chat connection established.", "system");
   });
-  conn.on('data', function(data) {
+  conn.on('data', async function(data) {
     // If data is an object with a file property, treat it as a file message.
     if (typeof data === "object" && data.file) {
       if (data.fileType && data.fileType.startsWith("image/")) {
@@ -118,8 +145,9 @@ function setupConnection() {
       }
       return;
     }
+    const decryptedMessage = await decryptMessage(data);
     // Otherwise, handle as a text message.
-    logMessage(data, "received");
+    logMessage(decryptedMessage, "received");
   });
   conn.on('error', function(err) {
     console.error("Connection error:", err);
@@ -128,11 +156,13 @@ function setupConnection() {
 }
 
 // Send a text message.
-function sendMessage() {
+async function sendMessage() {
   const message = document.getElementById("messageInput").value;
   if (message.trim() === "") return;
   if (conn && conn.open) {
-    conn.send(message);
+    const encrypted = await encryptMessage(message);
+    console.log("Encrypted message:", encrypted);
+    conn.send(encrypted);
     logMessage(message, "sent");
     document.getElementById("messageInput").value = "";
   } else {
@@ -202,6 +232,21 @@ async function startVideoCall() {
   }
 }
 
+// Stop a video call.
+function endVideoCall() {
+  if (currentCall) {
+    currentCall.close();
+    currentCall = null;
+  }
+  if (localStream) {
+    // Stop all tracks in the local stream.
+    localStream.getTracks().forEach(track => track.stop());
+    localStream = null;
+    document.getElementById("localVideo").srcObject = null;
+    document.getElementById("remoteVideo").srcObject = null;
+  }
+}
+
 // Set up a video call.
 function setupCall(call) {
   currentCall = call;
@@ -221,6 +266,25 @@ function setupCall(call) {
   });
 }
 
+// Disconnect function to close chat connection, video call, and destroy peer.
+function disconnect() {
+  if (conn) {
+    conn.close();
+    conn = null;
+    logMessage("Chat connection disconnected.", "system");
+  }
+  if (currentCall) {
+    currentCall.close();
+    currentCall = null;
+    logMessage("Video call ended.", "system");
+  }
+  if (peer && !peer.destroyed) {
+    peer.destroy();
+    logMessage("Peer connection closed.", "system");
+  }
+}
+
+// Event listeners.
 document.getElementById("sendButton").addEventListener("click", sendMessage);
 document.getElementById("messageInput").addEventListener("keydown", function(e) {
   if (e.key === "Enter") {
@@ -231,10 +295,13 @@ document.getElementById("messageInput").addEventListener("keydown", function(e) 
 document.getElementById("fileButton").addEventListener("click", function() {
   document.getElementById("fileInput").click();
 });
-
+// When a file is selected, send it automatically.
 document.getElementById("fileInput").addEventListener("change", sendFile);
+
 document.getElementById("startCallButton").addEventListener("click", startVideoCall);
-// document.getElementById("endCallButton").addEventListener("click", endVideoCall);
+document.getElementById("endCallButton").addEventListener("click", endVideoCall);
+
+document.getElementById("disconnectButton").addEventListener("click", disconnect);
 
 // Start the Peer connection.
 initPeer();
