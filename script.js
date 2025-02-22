@@ -110,79 +110,132 @@ function appendChatElement(element, type) {
 }
 
 // Initialize the Peer connection.
-function initPeer() {
-  // Attempt to be the host using a fixed ID based on the room.
-  peer = new Peer(room + '-host', { debug: 2 });
+// function initPeer() {
+//   // Attempt to be the host using a fixed ID based on the room.
+//   peer = new Peer(room + '-host', { debug: 2 });
 
+//   peer.on('open', function(id) {
+//     console.log('Host peer open: ' + id);
+//     logMessage("Waiting for peer to join...", "system");
+//   });
+
+//   // If the host ID is unavailable, switch to guest mode.
+//   peer.on('error', function(err) {
+//     console.log('Peer error:', err);
+//     if (err.type === 'unavailable-id') {
+//       // Host already exists; become the guest.
+//       peer = new Peer(room + '-guest', { debug: 2 });
+//       peer.on('open', function(id) {
+//         console.log('Guest peer open: ' + id);
+//         logMessage("Connecting to host...", "system");
+//         conn = peer.connect(room + '-host');
+//         setupConnection();
+//       });
+//     } else {
+//       logMessage("Peer error: " + err, "system");
+//     }
+//   });
+
+//   // For host: when a connection is received, set it up.
+//   peer.on('connection', function(connection) {
+//     conn = connection;
+//     setupConnection();
+//   });
+
+//   // Handle incoming video calls.
+//   peer.on('call', async function(call) {
+//     // if (call.metadata && call.metadata.isScreenShare) {
+//     //   call.answer(); // Answer without requesting camera access
+//     //   setupCall(call, true); // Handle screen sharing
+//     //   return;
+//     // }
+//     // if (!localStream) {
+//     //   try {
+//     //     localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+//     //     document.getElementById("localVideo").srcObject = localStream;
+//     //   } catch (err) {
+//     //     console.error("Error accessing media devices:", err);
+//     //     logMessage("Error accessing media devices: " + err, "system");
+//     //     return;
+//     //   }
+//     // }
+//     // call.answer(localStream);
+//     call.answer();
+//     setupCall(call, false);
+//   });
+// }
+
+
+function initHost() {
+  const hostId = room + '-host';
+  peer = new Peer(hostId, { debug: 2 });
+  
   peer.on('open', function(id) {
     console.log('Host peer open: ' + id);
     logMessage("Waiting for peer to join...", "system");
+    
+    // Set up host-specific event handlers.
+    peer.on('connection', function(connection) {
+      conn = connection;
+      setupConnection();
+    });
+    peer.on('call', handleIncomingCallAsHost);
   });
 
-  // If the host ID is unavailable, switch to guest mode.
   peer.on('error', function(err) {
     console.log('Peer error:', err);
     if (err.type === 'unavailable-id') {
-      // Host already exists; become the guest.
-      peer = new Peer(room + '-guest', { debug: 2 });
-      peer.on('open', function(id) {
-        console.log('Guest peer open: ' + id);
-        logMessage("Connecting to host...", "system");
-        conn = peer.connect(room + '-host');
-        setupConnection();
-      });
+      // Host already exists; switch to guest mode.
+      initGuest();
     } else {
       logMessage("Peer error: " + err, "system");
     }
   });
+}
 
-  // For host: when a connection is received, set it up.
-  peer.on('connection', function(connection) {
-    conn = connection;
+// Guest initialization.
+function initGuest() {
+  const guestId = room + '-guest';
+  peer = new Peer(guestId, { debug: 2 });
+  
+  peer.on('open', function(id) {
+    console.log('Guest peer open: ' + id);
+    logMessage("Connecting to host...", "system");
+    conn = peer.connect(room + '-host');
     setupConnection();
-  });
-
-  // Handle incoming video calls.
-  peer.on('call', async function(call) {
-    if (call.metadata && call.metadata.isScreenShare) {
-      call.answer(); // Answer without requesting camera access
-      setupCall(call); // Handle screen sharing
-      return;
-    }
-    showIncomingCallPopup(call);
+    
+    // Guest call handler: answer incoming calls without activating camera.
+    peer.on('call', handleIncomingCallAsGuest);
   });
 }
-function showIncomingCallPopup(call) {
-  const popup = document.createElement("div");
-  popup.classList.add("incoming-call-popup");
-  popup.innerHTML = `
-    <p>Incoming video call. Do you want to accept?</p>
-    <button id="acceptCall">Accept</button>
-    <button id="declineCall">Decline</button>
-  `;
-  document.body.appendChild(popup);
 
-  document.getElementById("acceptCall").addEventListener("click", async function() {
-    document.body.removeChild(popup);
-    // Even if localStream exists, prompt the user via the popup before answering.
-    if (!localStream) {
-      try {
-        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        document.getElementById("localVideo").srcObject = localStream;
-      } catch (err) {
-        console.error("Error accessing media devices:", err);
-        logMessage("Error accessing media devices: " + err, "system");
-        return;
-      }
-    }
-    call.answer(localStream);
-    setupCall(call);
-  });
+// Host-specific call handler.
+function handleIncomingCallAsHost(call) {
+  if (call.metadata && call.metadata.isScreenShare) {
+    call.answer(); // Answer screen share calls without camera access.
+    setupCall(call, true);
+  } else {
+    // Answer without acquiring local media so that the guest's camera remains off.
+    call.answer();
+    setupCall(call, false);
+  }
+}
 
-  document.getElementById("declineCall").addEventListener("click", function() {
-    document.body.removeChild(popup);
-    call.close();
-  });
+// Guest-specific call handler.
+function handleIncomingCallAsGuest(call) {
+  if (call.metadata && call.metadata.isScreenShare) {
+    call.answer(); // Answer screen share calls without camera access.
+    setupCall(call, true);
+  } else {
+    // Answer without acquiring local media so that the guest's camera remains off.
+    call.answer();
+    setupCall(call, false);
+  }
+}
+
+// Entry point: try to initialize as host first.
+function initPeer() {
+  initHost();
 }
 
 // Set up chat connection event handlers.
@@ -276,19 +329,22 @@ function sendFile() {
 
 // Start a video call.
 async function startVideoCall() {
-  if (currentCall) {
-    logMessage("Video call already in progress.", "system");
-    return;
-  }
+  // if (currentCall) {
+  //   logMessage("Video call already in progress.", "system");
+  //   return;
+  // }
   
   try {
     localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
     document.getElementById("localVideo").srcObject = localStream;
-
-    const remotePeerId = conn.peer;
-    const call = peer.call(remotePeerId, localStream);
-    setupCall(call);
-
+    
+    if (conn && conn.open) {
+      const remotePeerId = conn.peer;
+      const call = peer.call(remotePeerId, localStream);
+      setupCall(call);
+    } else {
+      logMessage("Remote connection not available for video call.", "system");
+    }
   } catch (err) {
     console.error("Error starting video call:", err);
     logMessage("Error starting video call: " + err, "system");
