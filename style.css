@@ -5,19 +5,12 @@
 
 body {
   margin: 0;
-  height: 100vh;
-  width: 100vw;
   font-family: 'Roboto', sans-serif;
+  background: linear-gradient(135deg, #ece9e6, #ffffff);
   display: flex;
   flex-direction: column;
   align-items: center;
   padding: 20px;
-}
-
-body{
-  background: url('./images/ChatBackground.jpeg') no-repeat top center;
-  background-size: 100% auto;
-  background-attachment: scroll;
 }
 
 h1, h2 {
@@ -26,48 +19,9 @@ h1, h2 {
   text-align: center;
 }
 
-#Top {
-  display: flex;
-  align-items: center; /* Aligns items vertically */
-  justify-content: space-between; /* Pushes elements to edges */
-  width: 100%;
-  max-width: 90%;
-  padding: 10px 20px;
-  background-color: #128c7e; /* Adjust color */
-  border-radius: 10px;
-  color: white;
-}
-
-#Top h1 {
-  flex-grow: 1; /* Allows it to take up available space */
-  text-align: center; /* Centers text */
-  margin: 0;
-  padding-left: 5px;
-}
-
-#Top p {
-  margin: 0;
-  padding-right: 30px;
-  color: silver;
-}
-
-#disconnectButton {
-  background-color: #ff3b3b;
-  color: white;
-  border: none;
-  padding: 8px 15px;
-  border-radius: 5px;
-  cursor: pointer;
-}
-
-#disconnectButton:hover {
-  background-color: darkred;
-}
-
 #room-id {
   font-weight: bold;
-  color: #black;
-  padding-right: 0px;
+  color: #25D366;
 }
 
 /* Chat Container */
@@ -83,7 +37,6 @@ h1, h2 {
   display: flex;
   flex-direction: column;
   margin-bottom: 15px;
-  padding-top: 10px;
 }
 
 /* Message Bubbles */
@@ -93,8 +46,6 @@ h1, h2 {
   margin: 5px 0;
   max-width: 75%;
   word-wrap: break-word;
-  box-shadow: 3px 3px 10px rgba(0, 0, 0, 0.1); /* Soft shadow for depth */
-  transition: transform 0.1s ease-in-out;
 }
 
 .sent {
@@ -132,10 +83,9 @@ h1, h2 {
   border-top-left-radius: 20px;
   border-bottom-left-radius: 20px;
   font-size: 1em;
-  color: black;
 }
 
-button#sendButton {
+#sendButton {
   padding: 0 20px;
   border: none;
   background-color: #25D366; 
@@ -147,21 +97,21 @@ button#sendButton {
   transition: background-color 0.2s;
 }
 
-button#fileButton {
+#fileButton {
   padding: 0 15px;
   border: none;
-  background-color: #3f4140; 
+  background-color: #aac2b3; 
   color: #fff;
   font-size: 1.5em;
   cursor: pointer;
   transition: background-color 0.2s;
 }
 
-button#sendButton:hover {
-  background-color: #15af22; 
+#sendButton:hover {
+  background-color: #1ebe5d; 
 }
-button#fileButton:hover {
-  background-color: #000000;
+#fileButton:hover {
+  background-color: #a0b8a9;
 }
 
 /* Video Container */
@@ -181,19 +131,12 @@ video {
 }
 
 /* Video Call Button */
-#call-buttons {
-  display: flex;
-  justify-content: center;
-  gap: 40%; /* Adds spacing between buttons */
-  margin-top: 10px;
-  }
-
-button#startCallButton, button#endCallButton {
-  width: 350px;
-  height: 100px;
+#startCallButton, #endCallButton {
+  width: 100%;
+  max-width: 80%;
   padding: 10px;
   border: none;
-  background-color: #25D366;
+  background-color: #128c7e;
   color: #fff;
   font-size: 1em;
   border-radius: 20px;
@@ -201,12 +144,8 @@ button#startCallButton, button#endCallButton {
   transition: background-color 0.2s;
 }
 
-button#startCallButton:hover, button#endCallButton:hover {
-  background-color: #277e05;
-}
-
-button#startCallButton:active, button#endCallButton:active {
-  transform: scale(0.95);
+#startCallButton:hover, #endCallButton:hover {
+  background-color: #0f6b63;
 }
 
 .sent-file, .received-file {
@@ -215,4 +154,23 @@ button#startCallButton:active, button#endCallButton:active {
   border-radius: 10px;
   margin-top: 5px;
   object-fit: contain;
+}
+
+/* ############################################################################################ */
+/* Disconnect Button */
+#disconnectButton {
+  width: 100%;
+  max-width: 12%;
+  padding: 5px;
+  border: none;
+  background-color: #d9534f;
+  color: #fff;
+  font-size: 1em;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+#disconnectButton:hover {
+  background-color: #c9302c;
 }
