@@ -202,6 +202,21 @@ async function startVideoCall() {
   }
 }
 
+// Stop a video call.
+function endVideoCall() {
+  if (currentCall) {
+    currentCall.close();
+    currentCall = null;
+  }
+  if (localStream) {
+    // Stop all tracks in the local stream.
+    localStream.getTracks().forEach(track => track.stop());
+    localStream = null;
+    document.getElementById("localVideo").srcObject = null;
+    document.getElementById("remoteVideo").srcObject = null;
+  }
+}
+
 // Set up a video call.
 function setupCall(call) {
   currentCall = call;
@@ -221,6 +236,7 @@ function setupCall(call) {
   });
 }
 
+// Event listeners.
 document.getElementById("sendButton").addEventListener("click", sendMessage);
 document.getElementById("messageInput").addEventListener("keydown", function(e) {
   if (e.key === "Enter") {
@@ -231,10 +247,10 @@ document.getElementById("messageInput").addEventListener("keydown", function(e) 
 document.getElementById("fileButton").addEventListener("click", function() {
   document.getElementById("fileInput").click();
 });
-
+// When a file is selected, send it automatically.
 document.getElementById("fileInput").addEventListener("change", sendFile);
 document.getElementById("startCallButton").addEventListener("click", startVideoCall);
-// document.getElementById("endCallButton").addEventListener("click", endVideoCall);
+document.getElementById("endCallButton").addEventListener("click", endVideoCall);
 
 // Start the Peer connection.
 initPeer();
