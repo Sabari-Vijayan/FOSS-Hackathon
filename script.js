@@ -172,6 +172,8 @@ function sendFile() {
     } else {
       logMessage("Connection not open yet.", "system");
     }
+    // Clear the file input.
+    fileInput.value = "";
   }
   reader.readAsDataURL(file);
 }
@@ -219,15 +221,20 @@ function setupCall(call) {
   });
 }
 
-// Event listeners.
 document.getElementById("sendButton").addEventListener("click", sendMessage);
 document.getElementById("messageInput").addEventListener("keydown", function(e) {
   if (e.key === "Enter") {
     sendMessage();
   }
 });
-document.getElementById("sendFileButton").addEventListener("click", sendFile);
+// File button triggers file selection.
+document.getElementById("fileButton").addEventListener("click", function() {
+  document.getElementById("fileInput").click();
+});
+
+document.getElementById("fileInput").addEventListener("change", sendFile);
 document.getElementById("startCallButton").addEventListener("click", startVideoCall);
+// document.getElementById("endCallButton").addEventListener("click", endVideoCall);
 
 // Start the Peer connection.
 initPeer();
