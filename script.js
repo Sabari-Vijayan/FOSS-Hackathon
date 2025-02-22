@@ -146,9 +146,25 @@ function initPeer() {
   peer.on('call', async function(call) {
     if (call.metadata && call.metadata.isScreenShare) {
       call.answer(); // Answer without requesting camera access
-      setupCall(call, true); // Handle screen sharing
+      setupCall(call); // Handle screen sharing
       return;
     }
+    showIncomingCallPopup(call);
+  });
+}
+function showIncomingCallPopup(call) {
+  const popup = document.createElement("div");
+  popup.classList.add("incoming-call-popup");
+  popup.innerHTML = `
+    <p>Incoming video call. Do you want to accept?</p>
+    <button id="acceptCall">Accept</button>
+    <button id="declineCall">Decline</button>
+  `;
+  document.body.appendChild(popup);
+
+  document.getElementById("acceptCall").addEventListener("click", async function() {
+    document.body.removeChild(popup);
+    // Even if localStream exists, prompt the user via the popup before answering.
     if (!localStream) {
       try {
         localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
@@ -160,7 +176,12 @@ function initPeer() {
       }
     }
     call.answer(localStream);
-    setupCall(call, false);
+    setupCall(call);
+  });
+
+  document.getElementById("declineCall").addEventListener("click", function() {
+    document.body.removeChild(popup);
+    call.close();
   });
 }
 
@@ -263,14 +284,11 @@ async function startVideoCall() {
   try {
     localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
     document.getElementById("localVideo").srcObject = localStream;
-    
-    if (conn && conn.open) {
-      const remotePeerId = conn.peer;
-      const call = peer.call(remotePeerId, localStream);
-      setupCall(call);
-    } else {
-      logMessage("Remote connection not available for video call.", "system");
-    }
+
+    const remotePeerId = conn.peer;
+    const call = peer.call(remotePeerId, localStream);
+    setupCall(call);
+
   } catch (err) {
     console.error("Error starting video call:", err);
     logMessage("Error starting video call: " + err, "system");
