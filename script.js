@@ -48,6 +48,8 @@ async function startScreenShare() {
       const call = peer.call(remotePeerId, localStream, { metadata: { isScreenShare: true } });
       setupCall(call, true);
       isScreenSharing = true;
+      document.getElementById("shareScreenButton").style.display = "none"; // Show End Call button
+      document.getElementById("endScreenShareButton").style.display = "block"; // Hide Start Call button
     } else {
       logMessage("Remote connection not available for video call.", "system");
     }
@@ -56,8 +58,8 @@ async function startScreenShare() {
     logMessage("Error starting video call: " + err, "system");
   }
 }
-// End screen sharing.
 function endScreenShare() {
+
   if (isScreenSharing) {
     // Stop all tracks of the screen share stream.
     if (localStream) {
@@ -70,7 +72,10 @@ function endScreenShare() {
     }
     // Reset the video element and flag.
     document.getElementById("localVideo").srcObject = null;
+    document.getElementById("shareScreenButton").style.display = "block"; // Show End Call button
+    document.getElementById("endScreenShareButton").style.display = "none"; // Hide Start Call button
     isScreenSharing = false;
+    adjustShareLayout(false);
     logMessage("Screen sharing ended.", "system");
   } else {
     logMessage("No active screen share session to end.", "system");
@@ -108,63 +113,6 @@ function appendChatElement(element, type) {
   chatDiv.appendChild(container);
   chatDiv.scrollTop = chatDiv.scrollHeight;
 }
-
-// Initialize the Peer connection.
-// function initPeer() {
-//   // Attempt to be the host using a fixed ID based on the room.
-//   peer = new Peer(room + '-host', { debug: 2 });
-
-//   peer.on('open', function(id) {
-//     console.log('Host peer open: ' + id);
-//     logMessage("Waiting for peer to join...", "system");
-//   });
-
-//   // If the host ID is unavailable, switch to guest mode.
-//   peer.on('error', function(err) {
-//     console.log('Peer error:', err);
-//     if (err.type === 'unavailable-id') {
-//       // Host already exists; become the guest.
-//       peer = new Peer(room + '-guest', { debug: 2 });
-//       peer.on('open', function(id) {
-//         console.log('Guest peer open: ' + id);
-//         logMessage("Connecting to host...", "system");
-//         conn = peer.connect(room + '-host');
-//         setupConnection();
-//       });
-//     } else {
-//       logMessage("Peer error: " + err, "system");
-//     }
-//   });
-
-//   // For host: when a connection is received, set it up.
-//   peer.on('connection', function(connection) {
-//     conn = connection;
-//     setupConnection();
-//   });
-
-//   // Handle incoming video calls.
-//   peer.on('call', async function(call) {
-//     // if (call.metadata && call.metadata.isScreenShare) {
-//     //   call.answer(); // Answer without requesting camera access
-//     //   setupCall(call, true); // Handle screen sharing
-//     //   return;
-//     // }
-//     // if (!localStream) {
-//     //   try {
-//     //     localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-//     //     document.getElementById("localVideo").srcObject = localStream;
-//     //   } catch (err) {
-//     //     console.error("Error accessing media devices:", err);
-//     //     logMessage("Error accessing media devices: " + err, "system");
-//     //     return;
-//     //   }
-//     // }
-//     // call.answer(localStream);
-//     call.answer();
-//     setupCall(call, false);
-//   });
-// }
-
 
 function initHost() {
   const hostId = room + '-host';
@@ -214,6 +162,7 @@ function handleIncomingCallAsHost(call) {
   if (call.metadata && call.metadata.isScreenShare) {
     call.answer(); // Answer screen share calls without camera access.
     setupCall(call, true);
+    adjustShareLayout(true);
   } else {
     // Answer without acquiring local media so that the guest's camera remains off.
     call.answer();
@@ -226,6 +175,7 @@ function handleIncomingCallAsGuest(call) {
   if (call.metadata && call.metadata.isScreenShare) {
     call.answer(); // Answer screen share calls without camera access.
     setupCall(call, true);
+    adjustShareLayout(true);
   } else {
     // Answer without acquiring local media so that the guest's camera remains off.
     call.answer();
@@ -329,11 +279,6 @@ function sendFile() {
 
 // Start a video call.
 async function startVideoCall() {
-  // if (currentCall) {
-  //   logMessage("Video call already in progress.", "system");
-  //   return;
-  // }
-  
   try {
     localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
     document.getElementById("localVideo").srcObject = localStream;
@@ -342,6 +287,9 @@ async function startVideoCall() {
       const remotePeerId = conn.peer;
       const call = peer.call(remotePeerId, localStream);
       setupCall(call);
+      adjustVideoLayout(true);
+      document.getElementById("endCallButton").style.display = "block"; // Show End Call button
+      document.getElementById("startCallButton").style.display = "none"; // Hide Start Call button
     } else {
       logMessage("Remote connection not available for video call.", "system");
     }
@@ -350,7 +298,6 @@ async function startVideoCall() {
     logMessage("Error starting video call: " + err, "system");
   }
 }
-
 // Stop a video call.
 function endVideoCall() {
   if (currentCall) {
@@ -363,6 +310,9 @@ function endVideoCall() {
     localStream = null;
     document.getElementById("localVideo").srcObject = null;
     document.getElementById("remoteVideo").srcObject = null;
+    adjustVideoLayout(false);
+    document.getElementById("endCallButton").style.display = "none"; // Hide End Call button
+    document.getElementById("startCallButton").style.display = "block"; // Show Start Call button
   }
 }
 
@@ -423,5 +373,90 @@ document.getElementById("disconnectButton").addEventListener("click", disconnect
 
 document.getElementById("shareScreenButton").addEventListener("click", startScreenShare);
 document.getElementById("endScreenShareButton").addEventListener("click", endScreenShare);
+
+function adjustVideoLayout(isVideoCallActive) {
+  const remoteVideo = document.getElementById("remoteVideo");
+  const localVideo = document.getElementById("localVideo");
+
+  if (isVideoCallActive) {
+    remoteVideo.style.width = "100%";
+    remoteVideo.style.height = "100%";
+    remoteVideo.style.objectFit = "cover";
+    remoteVideo.style.transition = "all 0.5s ease-in-out"; 
+
+    localVideo.style.width = "20%";
+    localVideo.style.height = "100%";
+    localVideo.style.objectFit = "cover";
+    localVideo.style.transition = "all 0.5s ease-in-out"; 
+  } else {
+    remoteVideo.style.transition = "all 0.5s ease-in-out";
+    remoteVideo.style.width = "50%";  // Adjust to initial small size
+    remoteVideo.style.height = "50%";
+    remoteVideo.style.objectFit = "contain";
+
+    localVideo.style.transition = "all 0.5s ease-in-out";
+    localVideo.style.width = "50%";  // Adjust to initial small size
+    localVideo.style.height = "50%";
+    localVideo.style.objectFit = "contain";
+  }
+}
+function adjustShareLayout(isVideoCallActive) {
+  const remoteVideo = document.getElementById("remoteVideo");
+  const localVideo = document.getElementById("localVideo");
+
+  if (isVideoCallActive) {
+    remoteVideo.style.width = "50%";
+    remoteVideo.style.height = "50%";
+    remoteVideo.style.objectFit = "cover";
+    remoteVideo.style.transition = "all 0.5s ease-in-out"; 
+
+    localVideo.style.width = "0%";
+    localVideo.style.height = "0%";
+    localVideo.style.objectFit = "cover";
+    localVideo.style.transition = "all 0.5s ease-in-out"; 
+  } else {
+    remoteVideo.style.transition = "all 0.5s ease-in-out";
+    remoteVideo.style.width = "50%";  // Adjust to initial small size
+    remoteVideo.style.height = "50%";
+    remoteVideo.style.objectFit = "contain";
+
+    localVideo.style.transition = "all 0.5s ease-in-out";
+    localVideo.style.width = "50%";  // Adjust to initial small size
+    localVideo.style.height = "50%";
+    localVideo.style.objectFit = "contain";
+  }
+}
+
+function hideScreenShareButtonIfMobile() {
+  const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  if (isMobile) {
+    document.getElementById("shareScreenButton").style.display = "none";
+    document.getElementById("endScreenShareButton").style.display = "none";
+    console.log("Screen sharing disabled on mobile devices.");
+  }
+  else {
+    console.log("Screen sharing enabled on desktop.");
+  }
+}
+document.addEventListener("DOMContentLoaded", hideScreenShareButtonIfMobile);
+
+function adjustChatHeight() {
+  const chatDiv = document.getElementById("chat");
+  if (!chatDiv) {
+    console.error("Chat area not found in the DOM.");
+    return;
+  }
+  const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  if (isMobile) {
+    chatDiv.style.height = "70vh"; // Make chat cover full height on mobile
+    chatDiv.style.width = "100%";
+  } 
+  // else {
+  //   chatDiv.style.height = "400px"; // Keep a fixed height on laptops/desktops
+  //   chatDiv.style.width = "30%"; // Adjust as needed
+  // }
+}
+document.addEventListener("DOMContentLoaded", adjustChatHeight);
+
 // Start the Peer connection.
 initPeer();
