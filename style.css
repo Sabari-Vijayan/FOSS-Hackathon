@@ -68,7 +68,7 @@ h1, h2 {
 }
 
 /* Input Containers */
-#input-container, #file-container {
+#input-container {
   width: 100%;
   max-width: 600px;
   display: flex;
@@ -79,16 +79,16 @@ h1, h2 {
   flex: 1;
   padding: 10px;
   border: 1px solid #ccc;
+  border-right: none;
   border-top-left-radius: 20px;
   border-bottom-left-radius: 20px;
   font-size: 1em;
 }
 
-#input-container button,
-#file-container button {
+button#sendButton {
   padding: 0 20px;
   border: none;
-  background-color: #25D366;
+  background-color: #25D366; 
   color: #fff;
   font-size: 1em;
   cursor: pointer;
@@ -97,18 +97,21 @@ h1, h2 {
   transition: background-color 0.2s;
 }
 
-#input-container button:hover,
-#file-container button:hover {
-  background-color: #1ebe5d;
+button#fileButton {
+  padding: 0 15px;
+  border: none;
+  background-color: #aac2b3; 
+  color: #fff;
+  font-size: 1.5em;
+  cursor: pointer;
+  transition: background-color 0.2s;
 }
 
-#file-container input[type="file"] {
-  flex: 1;
-  padding: 10px;
-  border: 1px solid #ccc;
-  border-top-left-radius: 20px;
-  border-bottom-left-radius: 20px;
-  font-size: 1em;
+button#sendButton:hover {
+  background-color: #1ebe5d; 
+}
+button#fileButton:hover {
+  background-color: #a0b8a9;
 }
 
 /* Video Container */
@@ -128,7 +131,7 @@ video {
 }
 
 /* Video Call Button */
-button#startCallButton {
+button#startCallButton, button#endCallButton {
   width: 100%;
   max-width: 80%;
   padding: 10px;
@@ -141,11 +144,10 @@ button#startCallButton {
   transition: background-color 0.2s;
 }
 
-button#startCallButton:hover {
+button#startCallButton:hover, button#endCallButton:hover {
   background-color: #0f6b63;
 }
 
-/* Styling for images shared in chat */
 .sent-file, .received-file {
   max-width: 70%;
   max-height: 200px;
