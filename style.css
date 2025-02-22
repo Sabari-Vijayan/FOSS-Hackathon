@@ -5,6 +5,7 @@
 
 body {
   margin: 0;
+  height: 100%;
   font-family: 'Roboto', sans-serif;
   background: linear-gradient(135deg, #ece9e6, #ffffff);
   display: flex;
@@ -46,6 +47,8 @@ h1, h2 {
   margin: 5px 0;
   max-width: 75%;
   word-wrap: break-word;
+  box-shadow: 3px 3px 10px rgba(0, 0, 0, 0.1); /* Soft shadow for depth */
+  transition: transform 0.1s ease-in-out;
 }
 
 .sent {
@@ -83,6 +86,7 @@ h1, h2 {
   border-top-left-radius: 20px;
   border-bottom-left-radius: 20px;
   font-size: 1em;
+  color: black;
 }
 
 button#sendButton {
@@ -100,7 +104,7 @@ button#sendButton {
 button#fileButton {
   padding: 0 15px;
   border: none;
-  background-color: #aac2b3; 
+  background-color: #3f4140; 
   color: #fff;
   font-size: 1.5em;
   cursor: pointer;
@@ -108,10 +112,10 @@ button#fileButton {
 }
 
 button#sendButton:hover {
-  background-color: #1ebe5d; 
+  background-color: #15af22; 
 }
 button#fileButton:hover {
-  background-color: #a0b8a9;
+  background-color: #000000;
 }
 
 /* Video Container */
@@ -131,12 +135,19 @@ video {
 }
 
 /* Video Call Button */
+#call-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 40%; /* Adds spacing between buttons */
+  margin-top: 10px;
+  }
+
 button#startCallButton, button#endCallButton {
-  width: 100%;
-  max-width: 80%;
+  width: 350px;
+  height: 100px;
   padding: 10px;
   border: none;
-  background-color: #128c7e;
+  background-color: #3ce611;
   color: #fff;
   font-size: 1em;
   border-radius: 20px;
@@ -145,7 +156,11 @@ button#startCallButton, button#endCallButton {
 }
 
 button#startCallButton:hover, button#endCallButton:hover {
-  background-color: #0f6b63;
+  background-color: #277e05;
+}
+
+button#startCallButton:active, button#endCallButton:active {
+  transform: scale(0.95);
 }
 
 .sent-file, .received-file {
