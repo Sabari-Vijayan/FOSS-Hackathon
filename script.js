@@ -93,6 +93,9 @@ function logMessage(msg, type = "system") {
   } else {
     p.classList.add("system");
   }
+  if (/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+    p.style.fontSize = type === "system" ? "35px" : "50px";
+  }
   const chatDiv = document.getElementById("chat");
   chatDiv.appendChild(p);
   chatDiv.scrollTop = chatDiv.scrollHeight;
@@ -112,11 +115,23 @@ function appendChatElement(element, type) {
   const chatDiv = document.getElementById("chat");
   chatDiv.appendChild(container);
   chatDiv.scrollTop = chatDiv.scrollHeight;
+  if (/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+    container.style.fontSize = type === "system" ? "35px" : "50px";
+  }
 }
 
 function initHost() {
   const hostId = room + '-host';
-  peer = new Peer(hostId, { debug: 2 });
+  const peerConfig = {
+    debug: 2, // Enables detailed logging for debugging purposes.
+    config: {
+      iceServers: [
+        { urls: "stun:stun.l.google.com:19302" } // Google's free STUN server
+      ]
+    }
+  };
+  // peer = new Peer(hostId, { debug: 2 });
+  peer = new Peer(hostId, peerConfig);
   
   peer.on('open', function(id) {
     console.log('Host peer open: ' + id);
@@ -168,6 +183,7 @@ function handleIncomingCallAsHost(call) {
     call.answer();
     setupCall(call, false);
   }
+  document.getElementById("remoteVideo").style.display = "block"; // Show End Call button
 }
 
 // Guest-specific call handler.
@@ -181,6 +197,7 @@ function handleIncomingCallAsGuest(call) {
     call.answer();
     setupCall(call, false);
   }
+  document.getElementById("remoteVideo").style.display = "block"; // Show End Call button
 }
 
 // Entry point: try to initialize as host first.
@@ -213,6 +230,7 @@ function setupConnection() {
     }
     const decryptedMessage = await decryptMessage(data);
     // Otherwise, handle as a text message.
+
     logMessage(decryptedMessage, "received");
   });
   conn.on('error', function(err) {
@@ -287,6 +305,7 @@ async function startVideoCall() {
       const remotePeerId = conn.peer;
       const call = peer.call(remotePeerId, localStream);
       setupCall(call);
+      document.getElementById("localVideo").style.display = "block"; // Show End Call button
       adjustVideoLayout(true);
       document.getElementById("endCallButton").style.display = "block"; // Show End Call button
       document.getElementById("startCallButton").style.display = "none"; // Hide Start Call button
@@ -379,59 +398,52 @@ function adjustVideoLayout(isVideoCallActive) {
   const localVideo = document.getElementById("localVideo");
 
   if (isVideoCallActive) {
-    remoteVideo.style.width = "100%";
-    remoteVideo.style.height = "100%";
+    remoteVideo.style.width = "90vw";
+    remoteVideo.style.height = "90wh%";
     remoteVideo.style.objectFit = "cover";
     remoteVideo.style.transition = "all 0.5s ease-in-out"; 
 
-    localVideo.style.width = "20%";
-    localVideo.style.height = "100%";
+    localVideo.style.width = "40vh";
+    localVideo.style.height = "40vh";
     localVideo.style.objectFit = "cover";
     localVideo.style.transition = "all 0.5s ease-in-out"; 
   } else {
-    remoteVideo.style.transition = "all 0.5s ease-in-out";
-    remoteVideo.style.width = "50%";  // Adjust to initial small size
-    remoteVideo.style.height = "50%";
+    remoteVideo.style.transition = "all 0.4s ease-in-out, opacity 0.4s ease-in-out";
+    remoteVideo.style.width = "0%";  // Adjust to initial small size
+    remoteVideo.style.height = "0%";
     remoteVideo.style.objectFit = "contain";
 
-    localVideo.style.transition = "all 0.5s ease-in-out";
-    localVideo.style.width = "50%";  // Adjust to initial small size
-    localVideo.style.height = "50%";
+    localVideo.style.transition = "all 0.4s ease-in-out, opacity 0.4s ease-in-out";
+    localVideo.style.width = "0%";  // Adjust to initial small size
+    localVideo.style.height = "0%";
     localVideo.style.objectFit = "contain";
   }
 }
 function adjustShareLayout(isVideoCallActive) {
   const remoteVideo = document.getElementById("remoteVideo");
-  const localVideo = document.getElementById("localVideo");
 
   if (isVideoCallActive) {
-    remoteVideo.style.width = "50%";
-    remoteVideo.style.height = "50%";
+    remoteVideo.style.width = "85vw";
+    remoteVideo.style.height = "85vh";
     remoteVideo.style.objectFit = "cover";
     remoteVideo.style.transition = "all 0.5s ease-in-out"; 
-
-    localVideo.style.width = "0%";
-    localVideo.style.height = "0%";
-    localVideo.style.objectFit = "cover";
-    localVideo.style.transition = "all 0.5s ease-in-out"; 
   } else {
     remoteVideo.style.transition = "all 0.5s ease-in-out";
-    remoteVideo.style.width = "50%";  // Adjust to initial small size
-    remoteVideo.style.height = "50%";
+    remoteVideo.style.width = "0%";  // Adjust to initial small size
+    remoteVideo.style.height = "0%";
     remoteVideo.style.objectFit = "contain";
-
-    localVideo.style.transition = "all 0.5s ease-in-out";
-    localVideo.style.width = "50%";  // Adjust to initial small size
-    localVideo.style.height = "50%";
-    localVideo.style.objectFit = "contain";
   }
 }
 
 function hideScreenShareButtonIfMobile() {
   const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
   if (isMobile) {
+    const chatDiv = document.getElementById("chat");
     document.getElementById("shareScreenButton").style.display = "none";
     document.getElementById("endScreenShareButton").style.display = "none";
+    chatDiv.style.height = "70vh"; // Make chat cover full height on mobile
+    chatDiv.style.width = "100%";
+    document.body.style.fontSize = "37px"; // Increase base font size
     console.log("Screen sharing disabled on mobile devices.");
   }
   else {
@@ -439,24 +451,6 @@ function hideScreenShareButtonIfMobile() {
   }
 }
 document.addEventListener("DOMContentLoaded", hideScreenShareButtonIfMobile);
-
-function adjustChatHeight() {
-  const chatDiv = document.getElementById("chat");
-  if (!chatDiv) {
-    console.error("Chat area not found in the DOM.");
-    return;
-  }
-  const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-  if (isMobile) {
-    chatDiv.style.height = "70vh"; // Make chat cover full height on mobile
-    chatDiv.style.width = "100%";
-  } 
-  // else {
-  //   chatDiv.style.height = "400px"; // Keep a fixed height on laptops/desktops
-  //   chatDiv.style.width = "30%"; // Adjust as needed
-  // }
-}
-document.addEventListener("DOMContentLoaded", adjustChatHeight);
 
 // Start the Peer connection.
 initPeer();
